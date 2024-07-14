@@ -124,6 +124,9 @@ export const Connected = () => {
   }, [txnData, txnData2])
 
   const signMessage = async () => {
+    console.log('signMessage.inside')
+    console.log('signMessage.inside walletClient', walletClient)
+    console.log('signMessage.inside publicClient', publicClient)
     if (!walletClient || !publicClient) {
       return
     }

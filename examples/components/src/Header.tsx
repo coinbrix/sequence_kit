@@ -16,6 +16,7 @@ import { useState } from 'react'
 import { useAccount, useChainId, useDisconnect, useSwitchChain } from 'wagmi'
 
 const networks = [
+  { chainId: ChainId.HOMEVERSE, title: 'Homeverse' },
   { chainId: ChainId.ARBITRUM_SEPOLIA, title: 'Arbitrum Sepolia' },
   { chainId: ChainId.ARBITRUM_NOVA, title: 'Arbitrum Nova' }
 ]

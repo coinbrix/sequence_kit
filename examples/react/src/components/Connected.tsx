@@ -10,10 +10,10 @@ import {
 import { useCheckoutModal, useAddFundsModal } from '@0xsequence/kit-checkout'
 import { CardButton, Header } from '@0xsequence/kit-example-shared-components'
 import { useOpenWalletModal } from '@0xsequence/kit-wallet'
-import { allNetworks, ChainId } from '@0xsequence/network'
+import {allNetworks, ChainId, SigningProvider} from '@0xsequence/network'
 import { ethers } from 'ethers'
 import { AnimatePresence } from 'framer-motion'
-import React, { ComponentProps, useEffect } from 'react'
+import React, {ComponentProps, useEffect, useState} from 'react'
 import { formatUnits, parseUnits } from 'viem'
 import {
   useAccount,
@@ -24,10 +24,12 @@ import {
   useWalletClient,
   useWriteContract
 } from 'wagmi'
+import { initializeSingularity } from 'singularity-init';
 
 import { messageToSign } from '../constants'
 import { abi } from '../constants/nft-abi'
 import { delay, getCheckoutSettings, getOrderbookCalldata } from '../utils'
+import {SequenceWaasProvider} from "@0xsequence/kit-connectors/src/connectors/wagmiConnectors";
 
 // append ?debug to url to enable debug mode
 const searchParams = new URLSearchParams(location.search)
@@ -158,6 +160,9 @@ export const Connected = () => {
   }, [txnData, txnData2])
 
   const signMessage = async () => {
+    console.log('1signMessage.inside')
+    console.log('1signMessage.inside walletClient', walletClient)
+    console.log('1signMessage.inside publicClient', publicClient)
     if (!walletClient || !publicClient) {
       return
     }
@@ -167,6 +172,9 @@ export const Connected = () => {
     try {
       const message = messageToSign
 
+      console.log('address ', address)
+      console.log('account ',  address || ('' as `0x${string}`))
+
       // sign
       const sig = await walletClient.signMessage({
         account: address || ('' as `0x${string}`),
@@ -175,6 +183,10 @@ export const Connected = () => {
       console.log('address', address)
       console.log('signature:', sig)
       console.log('chainId in homepage', chainId)
+
+      const etherProvider = new ethers.providers.Web3Provider(provider);
+      const signer = etherProvider.getSigner();
+      const signature = await signer.signMessage(messageToSign);
 
       const [account] = await walletClient.getAddresses()
 
@@ -193,6 +205,236 @@ export const Connected = () => {
       setIsSigningMessage(false)
       console.error(e)
     }
+  }
+
+  function initializeSingularitySdkFunction(
+      w = window,
+      d = document,
+      v = 'latest',
+      e = 'production',
+      apiKey,
+      initCallback
+  ) {
+
+    if(apiKey) {
+      window.document.body.addEventListener('Singularity-mounted', () => {
+        window.Singularity.init(apiKey, async () => {
+          if(initCallback) {
+            initCallback()
+          }
+        })
+      })
+    }
+
+    let s = 'script'
+    let o = 'Singularity'
+    let js = ''
+    let fjs = ''
+
+    w[o] =
+        w[o] ||
+        function () {
+          (w[o].q = w[o].q || []).push(arguments);
+        };
+    js = d.createElement(s);
+    fjs = d.getElementsByTagName(s)[0];
+    js.id = o;
+    js.src = `http://localhost:9091/index.js`;
+    js.async = 1;
+    fjs.parentNode.insertBefore(js, fjs);
+    w.SingularityEnv = e;
+  }
+
+  const initSingularity = () => {
+    console.log('initSingularity.inside')
+    initializeSingularitySdkFunction(window, document,'latest','production','19011',async () => {
+      console.log('init success')
+    });
+  }
+
+  const loginToSingularity = () => {
+    console.log('loginToSingularity.inside walletClient', walletClient)
+    window.SingularityEvent.loginWithProvider(walletClient)
+  }
+
+  const getClientRequestedAssetId = () => {
+    return '19011000'
+  }
+
+  const getMarketplaceId = () => {
+    return 'CHAMPIONS_TACTICS_MARKETPLACE_19011'
+  }
+
+  const getNftId = () => {
+    return '0'
+  }
+
+  const getNftAddress = () => {
+    return '0x17805889212E24D785A842BA03279543b4a14B9F'
+  }
+
+  const getNftType = () => {
+    return 'ERC1155'
+  }
+
+  const getTradeType = () => {
+    return 'BUY'
+  }
+
+  const getNftPrice = () => {
+    return '0.01'
+  }
+
+  const getTokenName = () => {
+    return 'WOAS'
+  }
+
+  const [clientRequestedAssetTd, setClientRequestedAssetTd] = useState(getClientRequestedAssetId());
+  const [marketPlaceId, setMarketPlaceId] = useState(getMarketplaceId());
+  const [userRequestedNftId, setUserRequestedNftId] = useState(getNftId());
+  const [userRequestedNftAddress, setUserRequestedNftAddress] = useState(getNftAddress());
+  const [userRequestedNftQuantity, setUserRequestedNftQuantity] = useState('1');
+  const [userRequestedNftType, setUserRequestedNftType] = useState(getNftType);
+  const [userRequestedNFTTradeType, setUserRequestedNFTTradeType] = useState(getTradeType);
+  const [userRequestedNftPrice, setUserRequestedNftPrice] = useState(getNftPrice());
+  const [loading, setLoading] = useState(false);
+  const [requestId, setRequestId] = useState(0);
+
+  const initiateSingularityNftTxn = () => {
+      const clientReferenceId = 'AmitTest1';
+
+      const marketplaceData = {
+        requestId: requestId,
+        additionalFees: [],
+        additionalFeeRecipients: []
+      }
+
+      let body = {
+        clientReferenceId,
+        singularityTransactionType: 'NFT_PURCHASE',
+        transactionIconLink: 'https://singularity-web-assets-public.s3.ap-south-1.amazonaws.com/s9ynft.jpeg',
+        transactionLabel: 'S9Y NFT',
+        clientReceiveObject: {
+          clientRequestedAssetId: clientRequestedAssetTd,
+          address: "0xCA4511435F99dcbf3Ab7cba04C8A16721eB7b894"
+        },
+        userReceiveAssetDetailsList: [
+          {
+            marketplaceId: marketPlaceId,
+            userRequestedNFTId: userRequestedNftId,
+            userRequestedNFTAddress: userRequestedNftAddress,
+            userRequestedNFTQuantity: userRequestedNftQuantity,
+            userRequestedNFTType: userRequestedNftType,
+            userRequestedNFTPrice: userRequestedNftPrice,
+            userRequestedNFTTradeType: userRequestedNFTTradeType,
+            marketplaceData: JSON.stringify(
+                marketplaceData
+            )
+          }
+        ]
+      };
+
+      const requestString = JSON.stringify(body);
+      window.SingularityEvent.transactionFlow(requestString);
+  }
+
+  const singularitySignPersonalMessage = async () => {
+    console.log('singularitySignPersonalMessage.inside')
+    const res = await window.SingularityEvent.requestPersonalSignature("Amit Test Message")
+    console.log('res', res)
+  }
+
+  const switchChain = async () => {
+    console.log('switchChain.inside publicCLient', walletClient)
+    // const output = await publicClient.request({
+    //   method: 'wallet_switchEthereumChain',
+    //   params: [{ chainId: 421614 }]
+    // });
+
+    // const accounts = await walletClient?.request({
+    //   method: 'eth_accounts'
+    // });
+    // console.log('accounts', accounts)
+    //
+    // const output3 = await walletClient.switchChain({ chainId: 19011 });
+    // console.log('output3', output3)
+
+    // const output = await walletClient.request({
+    //   method: 'personal_sign',
+    //   params: ['This is a test Message', "0x0041c189B2D894b59e38460D602d415009d12226"]
+    // });
+    //
+    // console.log('output', output)
+
+    // Convert the message to a hex string
+    // const messageHex = "0x" + Buffer.from("This is a test Message", 'utf8').toString('hex');
+    // const output = await walletClient.request({
+    //   method: 'eth_sign',
+    //   params: ["0x0041c189B2D894b59e38460D602d415009d12226", messageHex]
+    // });
+    //
+    // console.log('output', output)
+
+    // const addChain = await walletClient.addChain({
+    //   id: 19011,
+    //   // chainId: '0x4a43',
+    //   name: 'HOME Verse Mainnet',
+    //   rpcUrls: ['https://rpc.mainnet.oasys.homeverse.games'],
+    //   nativeCurrency: {
+    //     symbol: 'OAS',
+    //     decimals: 18
+    //   }
+    // })
+
+
+    const addChain = await walletClient.addChain({
+      chain: {
+        id: 19011,
+        name: 'HOME Verse Mainnet',
+        rpcUrls: {
+          default: {
+            http: ['https://rpc.mainnet.oasys.homeverse.games']
+          }
+        },
+        nativeCurrency: {
+          symbol: 'OAS',
+          decimals: 18
+        }
+      }
+    })
+    console.log('addChain', addChain)
+
+    const currentChain1 = await walletClient.chain
+    console.log('currentChain1', currentChain1)
+    const switchChain = await walletClient.switchChain({id: 19011})
+    const currentChain2 = await walletClient.chain
+    console.log('currentChain2', currentChain2)
+    //
+    // const chainId1 = await walletClient.getChainId()
+    // console.log('chainId1', chainId1)
+    //
+    // const sc = await walletClient.switchChain({id: 19011})
+    // console.log('sc', sc)
+    //
+    // const chainId2 = await walletClient.getChainId()
+    // console.log('chainId2', chainId2)
+
+    // const transactionParameters = {
+    //   to: '0x17F547ae02a94a0339c4CFE034102423907c4592', // Replace with the recipient's address
+    //   from: '0x0041c189B2D894b59e38460D602d415009d12226', // Replace with your wallet address
+    //   value: '10', // Replace with the amount in wei (1 ether = 10^18 wei)
+    //   gas: '50000', // Optional, replace with the gas limit
+    //   // gasPrice: '0xGasPrice', // Optional, replace with the gas price in wei
+    //   // data: '0xYourData' // Optional, replace with the data field if needed
+    // };
+    //
+    // const output = await walletClient.request({
+    //   method: 'eth_sendTransaction',
+    //   params: [transactionParameters]
+    // });
+    //
+    // console.log(output);
+
   }
 
   const runSendTransaction = async () => {
@@ -324,6 +566,36 @@ export const Connected = () => {
                 View on {networkForCurrentChainId.blockExplorer.name}
               </Text>
             )}
+            <CardButton
+                title="Init Singularity"
+                description="Sign a message with your wallet"
+                onClick={initSingularity}
+                isPending={isSigningMessage}
+            />
+            <CardButton
+                title="Login to Singularity"
+                description="Sign a message with your wallet"
+                onClick={loginToSingularity}
+                isPending={isSigningMessage}
+            />
+            <CardButton
+                title="Singularity personal message"
+                description="Sign a message with your wallet"
+                onClick={singularitySignPersonalMessage}
+                isPending={isSigningMessage}
+            />
+            <CardButton
+                title="Singularity txn start"
+                description="Sign a message with your wallet"
+                onClick={initiateSingularityNftTxn}
+                isPending={isSigningMessage}
+            />
+            <CardButton
+                title="Switch chaain test"
+                description="Sign a message with your wallet"
+                onClick={switchChain}
+                isPending={isSigningMessage}
+            />
             <CardButton
               title="Sign message"
               description="Sign a message with your wallet"
